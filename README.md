@@ -107,6 +107,32 @@ failures; a broken network path needs the network fixed. Automatic
 network-level repair would need something else, such as an AWS Config rule
 with auto-remediation or a scheduled `terraform apply`.
 
+## A captured run
+
+Screenshots from the real test on 15 October 2026. The alarm and Lambda
+screenshots are in UTC; the ECS events are in UTC+3 (13:38 UTC = 16:38 there).
+Account IDs are masked.
+
+**CloudWatch alarm history.** At 13:38:15 the alarm went `OK → In alarm` and
+both SNS actions ran (`nrst-alerts` and `nrst-remediation-trigger`). It
+returned to `OK` at 13:45:15, after `terraform apply` restored the rule.
+
+![CloudWatch alarm history](screenshots/alarm-history.png)
+
+**Remediation Lambda log.** The Lambda was invoked by the SNS event at
+13:38:15, logged the target service and cluster, and forced a new ECS
+deployment. The whole invocation took under a second.
+
+![Remediation Lambda log](screenshots/remediation-log.png)
+
+**ECS service events.** ECS replaced the unhealthy tasks on its own (16:35),
+and again after the Lambda's forced deployment (16:38), but the new tasks kept
+failing health checks (`Request timed out`) because the security group rule was
+still missing. The service reached a steady state at 16:45, once the rule was
+back.
+
+![ECS service events](screenshots/ecs-service-events.png)
+
 ## Usage
 
 Requires Terraform >= 1.5, an AWS profile, and Python with boto3.
